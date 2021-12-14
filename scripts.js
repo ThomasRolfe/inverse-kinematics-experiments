@@ -19,15 +19,14 @@ canvas.addEventListener("mousemove", function (event) {
     mouse.y = event.y;
 });
 
-
-class Rectangle {
-    pointA;
-    pointB = new Coordinate(0,0);
+class Segment {
+    pointA = new Coordinate(0, 0);
+    pointB = new Coordinate(0, 0);
     length;
     radians;
 
     constructor(x, y, length, width, radians, parent = null) {
-        this.pointA = new Coordinate(x,y);
+        this.pointA = new Coordinate(x, y);
         this.length = length;
         this.radians = radians;
         this.parent = parent;
@@ -35,46 +34,30 @@ class Rectangle {
     }
 
     setA(coords) {
-        this.pointA = coords;
+        this.pointA.x = coords.x;
+        this.pointA.y = coords.y;
         this.calculateB();
     }
 
     calculateA() {
-        let x = this.pointB.x + Math.cos(this.radians) * this.length;
-        let y = this.pointB.y + Math.sin(this.radians) * this.length;
-        this.pointA.x = x;
-        this.pointA.y = y;
+        this.pointA.x = this.pointB.x + Math.cos(this.radians) * this.length;
+        this.pointA.y = this.pointB.y + Math.sin(this.radians) * this.length;
     }
 
     calculateB() {
-        let x = this.pointA.x + Math.sin(this.radians) * this.length;
-        let y = this.pointA.y + Math.cos(this.radians) * this.length;
-        this.pointB.x = x;
-        this.pointB.y = y;
+        this.pointB.x = this.pointA.x - Math.cos(this.radians) * this.length;
+        this.pointB.y = this.pointA.y - Math.sin(this.radians) * this.length;
     }
 
-    calculateAngle(ax, ay, bx, by) {
-        // Implement max amount of change from parent rect
-        let maxPercChange = 0.5;
-        let newRadians = Math.atan2((ay - by), (ax - bx));
+    calculateAngle(ax, ay, targetX, targetY) {
+        let newRadians = Math.atan2(ay - targetY, ax - targetX);
         this.radians = newRadians;
-    }    
+    }
 
-    follow() {
-        let followX;
-        let followY;
-
-        if(this.parent) {
-            followX = this.parent.pointA.x;
-            followY = this.parent.pointA.y;
-        } else {
-            followX = mouse.x;
-            followY = mouse.y;
-        }
-
-        this.calculateAngle(this.pointA.x, this.pointA.y, followX, followY);
-        this.pointB.x = followX;
-        this.pointB.y = followY;
+    follow(x, y) {
+        this.calculateAngle(this.pointA.x, this.pointA.y, x, y);
+        this.pointB.x = x;
+        this.pointB.y = y;
         this.calculateA();
     }
 
@@ -95,48 +78,37 @@ class Tentacle {
         this.base = base;
         this.fixed = fixed;
         this.segmentCount = segmentCount;
-        this.initializeSegments();
-    }
 
-    initializeSegments() {
-        for(let i = 0; this.segmentCount > i; i++) {
-            
-            if(i === 0) {
-                this.segments.push(new Rectangle(this.base.x, this.base.y, 100, 3, 10));
-                continue;
-            }
+        this.segments.push(new Segment(0, 0, 100, 3, 0));
+
+        for (let i = 1; this.segmentCount > i; i++) {
             this.segments.push(
-                new Rectangle(
-                    this.segments[i-1].pointA.x, 
-                    this.segments[i-1].pointA.y, 
-                    100, 
-                    3, 
-                    0, 
-                    this.segments[i-1]
-                )
+                new Segment(0, 0, 100, 3, 0, this.segments[i - 1])
             );
-            
         }
     }
 
     update() {
-        for(let i=0; this.segments.length > i; i++) {
-            this.segments[i].follow();
+        // Last segment follow mouse
+        let headSegment = this.segments[this.segments.length - 1];
+        headSegment.follow(mouse.x, mouse.y);
+
+        for (let i = this.segments.length - 2; i >= 0; i--) {
+            this.segments[i].follow(
+                this.segments[i + 1].pointA.x,
+                this.segments[i + 1].pointA.y
+            );
         }
     }
 
-    setBase(base) {
-        this.segments[0].setA(Object.assign({}, base));
-    }
-
-    fixSegments() {
-        for(let i = 1; this.segments.length > i; i++) {
-            this.segments[i].setA(Object.assign({}, this.segments[i-1].pointB));
+    anchorPoints() {
+        for (let i = 1; this.segments.length > i; i++) {
+            this.segments[i].setA(this.segments[i - 1].pointB);
         }
-    }    
+    }
 
     draw() {
-        for(let i=0; this.segments.length > i; i++) {
+        for (let i = 0; this.segments.length > i; i++) {
             this.segments[i].draw();
         }
     }
@@ -153,23 +125,18 @@ let tentacle;
 let base;
 
 function init() {
-    tentacle = new Tentacle(
-        new Coordinate(200, 300),
-        5
-    );
-
+    tentacle = new Tentacle(new Coordinate(200, 300), 4);
     base = new Coordinate(canvas.width / 2, canvas.height);
     animate();
 }
 
-
 function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);    
-    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     tentacle.update();
-    tentacle.setBase(base);    
-    // tentacle.fixSegments();
-    tentacle.draw();     
+    tentacle.segments[0].setA(base);
+    tentacle.anchorPoints();
+    tentacle.draw();
 
     requestAnimationFrame(animate);
 }
