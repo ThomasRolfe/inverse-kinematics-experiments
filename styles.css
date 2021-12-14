@@ -9,7 +9,7 @@ body {
     height: 100%;
 }
 #canvas {
-    width: 100vw;
-    height:100vh;
-    background-color: #eee
+    width: 800px;
+    height: 800px;
+    background-color: rgb(54, 54, 54);
 }

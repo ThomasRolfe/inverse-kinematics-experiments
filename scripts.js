@@ -1,12 +1,12 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+canvas.width = canvas.offsetWidth;
+canvas.height = canvas.offsetHeight;
 
 window.addEventListener("resize", function () {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
 });
 
 const mouse = {
@@ -69,35 +69,92 @@ class Segment {
         ctx.lineTo(this.pointB.x, this.pointB.y);
         ctx.stroke();
     }
+
+    inMouseRange() {
+        return true;
+        if (
+            (Math.abs(this.pointB.x - mouse.x) < 150 ||
+                Math.abs(this.pointB.x + mouse.x) < 150) &&
+            (Math.abs(this.pointB.y - mouse.y) < 150 ||
+                Math.abs(this.pointB.y + mouse.y) < 150)
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    applySink() {
+        let xFluctuation = 2 * (1 - Math.random() * 2);
+        let x = this.pointB.x + 0;
+        let y = this.pointB.y + 0;
+        this.follow(x, y);
+        // decide on an x/y
+        // x can be constant
+        // y can be small movement either way
+    }
 }
 
 class Tentacle {
     segments = [];
 
-    constructor(base, segmentCount = 1, fixed = false) {
+    constructor(
+        base,
+        segmentCount = 1,
+        segmentLength = 10,
+        segmentWidth = 20,
+        fixed = false
+    ) {
         this.base = base;
         this.fixed = fixed;
         this.segmentCount = segmentCount;
+        this.segmentLength = segmentLength;
+        this.segmentWidth = segmentWidth;
 
-        this.segments.push(new Segment(0, 0, 100, 3, 0));
+        this.segments.push(
+            new Segment(0, 0, this.segmentLength, this.segmentWidth, 0)
+        );
 
         for (let i = 1; this.segmentCount > i; i++) {
+            // Reduce stroke width evenly from max segment width to 1
+            let currentWidth = Math.max(
+                1,
+                this.segmentWidth - (this.segmentWidth / this.segmentCount) * i
+            );
+
             this.segments.push(
-                new Segment(0, 0, 100, 3, 0, this.segments[i - 1])
+                new Segment(
+                    0,
+                    0,
+                    this.segmentLength,
+                    currentWidth,
+                    0,
+                    this.segments[i - 1]
+                )
             );
         }
     }
 
     update() {
-        // Last segment follow mouse
+        // If mouse within range, act upon it
+        // Else apply some random y movement plus gravity
         let headSegment = this.segments[this.segments.length - 1];
-        headSegment.follow(mouse.x, mouse.y);
+        if (headSegment.inMouseRange()) {
+            headSegment.follow(mouse.x, mouse.y);
+        } else {
+            headSegment.applySink();
+        }
 
         for (let i = this.segments.length - 2; i >= 0; i--) {
             this.segments[i].follow(
                 this.segments[i + 1].pointA.x,
                 this.segments[i + 1].pointA.y
             );
+        }
+
+        if (this.fixed) {
+            this.segments[0].setA(this.base);
+            this.anchorPoints();
         }
     }
 
@@ -121,22 +178,48 @@ class Coordinate {
     }
 }
 
-let tentacle;
+let tentacles = [];
 let base;
+let minimumBoneAngle = 5;
+let maximumBoneAngle = 1;
+let item;
 
 function init() {
-    tentacle = new Tentacle(new Coordinate(200, 300), 4);
-    base = new Coordinate(canvas.width / 2, canvas.height);
+    let segmentCount = 200;
+    let segmentLength = 5;
+    let tentacleCount = 5;
+
+    for (let i = 0; i < tentacleCount; i++) {
+        tentacles.push(
+            new Tentacle(
+                new Coordinate(
+                    (canvas.width / tentacleCount) * i + 1,
+                    canvas.height + 10
+                ),
+                segmentCount,
+                segmentLength,
+                16,
+                true
+            )
+        );
+    }
+
     animate();
+}
+
+function applyMouseGravity() {
+    mouse.y += 0.4;
 }
 
 function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    tentacle.update();
-    tentacle.segments[0].setA(base);
-    tentacle.anchorPoints();
-    tentacle.draw();
+    for (let i = 0; tentacles.length > i; i++) {
+        tentacles[i].update();
+        tentacles[i].draw();
+    }
+
+    // applyMouseGravity();
 
     requestAnimationFrame(animate);
 }
