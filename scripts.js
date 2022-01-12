@@ -78,12 +78,18 @@ class Segment {
         ctx.moveTo(this.pointA.x, this.pointA.y);
         ctx.lineTo(this.pointB.x, this.pointB.y);
         ctx.stroke();
-        // avoid connector on last segment
-        this.circleConnector(this.pointB.x, this.pointB.y);
     }
 
-    circleConnector(x, y) {
-        // Add logic to draw a circle
+    drawCircleConnector(x, y) {
+        ctx.fillStyle = "#8a8a8a";
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.fillStyle = "#edc707";
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, 2 * Math.PI);
+        ctx.fill();
     }
 
     inMouseRange() {
@@ -193,6 +199,15 @@ class Tentacle {
             this.segments[i].draw();
         }
     }
+
+    drawCircleConnectors() {
+        for (let i = 0; this.segments.length > i; i++) {
+            this.segments[i].drawCircleConnector(
+                this.segments[i].pointB.x,
+                this.segments[i].pointB.y
+            );
+        }
+    }
 }
 
 class Coordinate {
@@ -214,7 +229,6 @@ function init() {
     let tentacleCount = 1;
 
     for (let i = 0; i < tentacleCount; i++) {
-        console.log((canvas.width / (tentacleCount + 1)) * i + 1);
         tentacles.push(
             new Tentacle(
                 new Coordinate(
@@ -242,6 +256,10 @@ function animate() {
     for (let i = 0; tentacles.length > i; i++) {
         tentacles[i].update();
         tentacles[i].draw();
+    }
+
+    for (let i = 0; tentacles.length > i; i++) {
+        tentacles[i].drawCircleConnectors();
     }
 
     // applyMouseGravity();
